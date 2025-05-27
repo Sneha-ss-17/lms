@@ -206,8 +206,6 @@ def reindex_exercises(doc):
 	course = frappe.get_doc("LMS Course", course_data["name"])
 	course.reindex_exercises()
 	frappe.msgprint("All exercises in this course have been re-indexed.")
-<<<<<<< Updated upstream
-=======
 
  
 @frappe.whitelist()
@@ -234,4 +232,3 @@ def has_permission(doc, ptype, user):
         return doc.owner == user or user == "Administrator"
  
     return False
->>>>>>> Stashed changes

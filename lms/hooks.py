@@ -252,8 +252,6 @@ add_to_apps_screen = [
 		"has_permission": "lms.lms.api.check_app_permission",
 	}
 ]
-<<<<<<< Updated upstream
-=======
 
 permission_query_conditions = {
     "LMS Course": "lms.lms.doctype.lms_course.lms_course.get_permission_query_conditions",
@@ -266,4 +264,3 @@ has_permission = {
     
 }
  
->>>>>>> Stashed changes
