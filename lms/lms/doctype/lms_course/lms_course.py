@@ -212,7 +212,6 @@ def reindex_exercises(doc):
 def get_permission_query_conditions(user):
     if "Administrator" in frappe.get_roles(user):
         return None  
- 
     if "LMS Trainer" in frappe.get_roles(user):
         return f"`tabLMS Course`.owner = '{user}'"
  
