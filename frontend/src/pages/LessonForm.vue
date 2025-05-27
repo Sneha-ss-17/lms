@@ -84,6 +84,7 @@ import {
 	createResource,
 	FormControl,
 	usePageMeta,
+	toast,
 } from 'frappe-ui'
 import {
 	computed,
@@ -92,17 +93,14 @@ import {
 	inject,
 	ref,
 	onBeforeUnmount,
-	watch,
 } from 'vue'
 import { sessionStore } from '../stores/session'
 import EditorJS from '@editorjs/editorjs'
 import LessonHelp from '@/components/LessonHelp.vue'
-import { AppleIcon, ChevronRight } from 'lucide-vue-next'
-import { createToast, getEditorTools } from '@/utils'
+import { ChevronRight } from 'lucide-vue-next'
+import { getEditorTools, enablePlyr } from '@/utils'
 import { capture } from '@/telemetry'
 import { useOnboarding } from 'frappe-ui/frappe'
-import Plyr from 'plyr'
-import 'plyr/dist/plyr.css'
 
 const { brand } = sessionStore()
 const editor = ref(null)
@@ -413,14 +411,14 @@ const createNewLesson = () => {
 								updateOnboardingStep('create_first_lesson')
 
 							capture('lesson_created')
-							showToast('Success', 'Lesson created successfully', 'check')
+							toast.success(__('Lesson created successfully'))
 							lessonDetails.reload()
 						},
 					}
 				)
 			},
 			onError(err) {
-				showToast('Error', err.message, 'x')
+				toast.error(err.messages?.[0] || err)
 			},
 		}
 	)
@@ -437,11 +435,11 @@ const editCurrentLesson = () => {
 			},
 			onSuccess() {
 				showSuccessMessage
-					? showToast('Success', 'Lesson updated successfully', 'check')
+					? toast.success(__('Lesson updated successfully'))
 					: ''
 			},
 			onError(err) {
-				showToast('Error', err.message, 'x')
+				toast.error(err.message)
 			},
 		}
 	)
@@ -454,51 +452,6 @@ const validateLesson = () => {
 	if (!lesson.content) {
 		return 'Content is required'
 	}
-}
-
-const showToast = (title, text, icon) => {
-	createToast({
-		title: title,
-		text: text,
-		icon: icon,
-		iconClasses:
-			icon == 'check'
-				? 'bg-surface-green-3 text-ink-white rounded-md p-px'
-				: 'bg-surface-red-5 text-ink-white rounded-md p-px',
-		position: icon == 'check' ? 'bottom-right' : 'top-center',
-		timeout: icon == 'check' ? 5 : 10,
-	})
-}
-
-const enablePlyr = () => {
-	setTimeout(() => {
-		const videoElement = document.getElementsByClassName('video-player')
-		if (videoElement.length === 0) return
-
-		const src = document
-			.getElementsByClassName('video-player')[0]
-			.getAttribute('src')
-		if (src) {
-			let videoID = src.split('/').pop()
-			document
-				.getElementsByClassName('video-player')[0]
-				.setAttribute('data-plyr-embed-id', videoID)
-		}
-		new Plyr('.video-player', {
-			youtube: {
-				noCookie: true,
-			},
-			controls: [
-				'play-large',
-				'play',
-				'progress',
-				'current-time',
-				'mute',
-				'volume',
-				'fullscreen',
-			],
-		})
-	}, 500)
 }
 
 const breadcrumbs = computed(() => {

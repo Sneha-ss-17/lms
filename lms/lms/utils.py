@@ -206,10 +206,13 @@ def get_tags(course):
 	return tags.split(",") if tags else []
 
 
-def get_instructors(course):
+def get_instructors(doctype, docname):
 	instructor_details = []
 	instructors = frappe.get_all(
-		"Course Instructor", {"parent": course}, order_by="idx", pluck="instructor"
+		"Course Instructor",
+		{"parent": docname, "parenttype": doctype},
+		order_by="idx",
+		pluck="instructor",
 	)
 
 	for instructor in instructors:
@@ -309,7 +312,7 @@ def get_lesson_index(lesson_name):
 def get_lesson_url(course, lesson_number):
 	if not lesson_number:
 		return
-	return f"/courses/{course}/learn/{lesson_number}"
+	return f"/lms/courses/{course}/learn/{lesson_number}"
 
 
 def get_batch(course, batch_name):
@@ -418,10 +421,11 @@ def get_initial_members(course):
 
 
 def is_instructor(course):
-	return (
-		len(list(filter(lambda x: x.name == frappe.session.user, get_instructors(course))))
-		> 0
-	)
+	instructors = get_instructors("LMS Course", course)
+	for instructor in instructors:
+		if instructor.name == frappe.session.user:
+			return True
+	return False
 
 
 def convert_number_to_character(number):
@@ -768,14 +772,17 @@ def get_chart_data(
 		from_date = add_months(getdate(), -1)
 	if not to_date:
 		to_date = getdate()
-	chart = frappe.get_doc("Dashboard Chart", chart_name)
-	filters = [([chart.document_type, "docstatus", "<", 2, False])]
-	doctype = chart.document_type
-	datefield = chart.based_on
-	value_field = chart.value_based_on or "1"
+
 	from_date = get_datetime(from_date).strftime("%Y-%m-%d")
 	to_date = get_datetime(to_date)
 
+	chart = frappe.get_doc("Dashboard Chart", chart_name)
+	doctype = chart.document_type
+	datefield = chart.based_on
+	value_field = chart.value_based_on or "1"
+
+	filters = [([chart.document_type, "docstatus", "<", 2, False])]
+	filters = filters + json.loads(chart.filters_json)
 	filters.append([doctype, datefield, ">=", from_date, False])
 	filters.append([doctype, datefield, "<=", to_date, False])
 
@@ -1007,7 +1014,7 @@ def get_courses(filters=None, start=0, page_length=20):
 
 def get_course_card_details(courses):
 	for course in courses:
-		course.instructors = get_instructors(course.name)
+		course.instructors = get_instructors("LMS Course", course.name)
 
 		if course.paid_course and course.published == 1:
 			course.amount, course.currency = check_multicurrency(
@@ -1151,7 +1158,7 @@ def get_course_details(course):
 		as_dict=1,
 	)
 
-	course_details.instructors = get_instructors(course_details.name)
+	course_details.instructors = get_instructors("LMS Course", course_details.name)
 	# course_details.is_instructor = is_instructor(course_details.name)
 	if course_details.paid_course or course_details.paid_certificate:
 		"""course_details.course_price, course_details.currency = check_multicurrency(
@@ -1267,7 +1274,10 @@ def get_lesson(course, chapter, lesson):
 
 	membership = get_membership(course)
 	course_info = frappe.db.get_value(
-		"LMS Course", course, ["title", "paid_certificate"], as_dict=1
+		"LMS Course",
+		course,
+		["title", "paid_certificate", "disable_self_learning"],
+		as_dict=1,
 	)
 
 	if (
@@ -1280,6 +1290,7 @@ def get_lesson(course, chapter, lesson):
 			"no_preview": 1,
 			"title": lesson_details.title,
 			"course_title": course_info.title,
+			"disable_self_learning": course_info.disable_self_learning,
 		}
 
 	lesson_details = frappe.db.get_value(
@@ -1317,9 +1328,10 @@ def get_lesson(course, chapter, lesson):
 	lesson_details.progress = progress
 	lesson_details.prev = neighbours["prev"]
 	lesson_details.membership = membership
-	lesson_details.instructors = get_instructors(course)
+	lesson_details.instructors = get_instructors("LMS Course", course)
 	lesson_details.course_title = course_info.title
 	lesson_details.paid_certificate = course_info.paid_certificate
+	lesson_details.disable_self_learning = course_info.disable_self_learning
 	return lesson_details
 
 
@@ -1383,7 +1395,7 @@ def get_batch_details(batch):
 		as_dict=True,
 	)
 
-	batch_details.instructors = get_instructors(batch)
+	batch_details.instructors = get_instructors("LMS Batch", batch)
 	batch_details.accept_enrollments = batch_details.start_date > getdate()
 
 	if (
@@ -2130,7 +2142,7 @@ def get_batch_type(filters):
 
 def get_batch_card_details(batches):
 	for batch in batches:
-		batch.instructors = get_instructors(batch.name)
+		batch.instructors = get_instructors("LMS Batch", batch.name)
 		students_count = frappe.db.count("LMS Batch Enrollment", {"batch": batch.name})
 
 		if batch.seat_count:

@@ -5,7 +5,7 @@
 		>
 			<Breadcrumbs class="h-7" :items="breadcrumbs" />
 			<div class="flex items-center space-x-2">
-				<Tooltip v-if="lesson.data?.membership" :text="__('Zen Mode')">
+				<Tooltip v-if="canGoZen()" :text="__('Zen Mode')">
 					<Button @click="goFullScreen()">
 						<template #icon>
 							<Focus class="w-4 h-4 stroke-2" />
@@ -31,9 +31,21 @@
 							)
 						}}
 					</div>
-					<Button v-if="user.data" @click="enrollStudent()" variant="solid">
+					<Button
+						v-if="user.data && !lesson.data.disable_self_learning"
+						@click="enrollStudent()"
+						variant="solid"
+					>
 						{{ __('Start Learning') }}
 					</Button>
+					<Badge
+						theme="blue"
+						size="lg"
+						v-else-if="lesson.data.disable_self_learning"
+						class="mt-2"
+					>
+						{{ __('Contact the Administrator to enroll for this course.') }}
+					</Badge>
 					<Button v-else @click="redirectToLogin()">
 						<template #prefix>
 							<LogIn class="w-4 h-4 stroke-1" />
@@ -83,7 +95,7 @@
 						</div>
 
 						<div class="flex items-center space-x-2 mt-2 md:mt-0">
-							<Button v-if="zenModeEnabled" @click="showDiscussionsInZenMode">
+							<Button v-if="zenModeEnabled" @click="showDiscussionsInZenMode()">
 								<template #icon>
 									<MessageCircleQuestion class="w-4 h-4 stroke-1.5" />
 								</template>
@@ -254,6 +266,7 @@
 <script setup>
 import {
 	createResource,
+	Badge,
 	Breadcrumbs,
 	Button,
 	Tooltip,
@@ -281,15 +294,13 @@ import {
 	MessageCircleQuestion,
 } from 'lucide-vue-next'
 import Discussions from '@/components/Discussions.vue'
-import { getEditorTools } from '../utils'
+import { getEditorTools, enablePlyr } from '@/utils'
 import { sessionStore } from '@/stores/session'
 import EditorJS from '@editorjs/editorjs'
 import LessonContent from '@/components/LessonContent.vue'
 import CourseInstructors from '@/components/CourseInstructors.vue'
 import ProgressBar from '@/components/ProgressBar.vue'
 import CertificationLinks from '@/components/CertificationLinks.vue'
-import Plyr from 'plyr'
-import 'plyr/dist/plyr.css'
 
 const user = inject('$user')
 const router = useRouter()
@@ -323,7 +334,6 @@ const props = defineProps({
 
 onMounted(() => {
 	startTimer()
-	enablePlyr()
 	document.addEventListener('fullscreenchange', attachFullscreenEvent)
 })
 
@@ -342,37 +352,6 @@ const attachFullscreenEvent = () => {
 onBeforeUnmount(() => {
 	document.removeEventListener('fullscreenchange', attachFullscreenEvent)
 })
-
-const enablePlyr = () => {
-	setTimeout(() => {
-		const videoElement = document.getElementsByClassName('video-player')
-		if (videoElement.length === 0) return
-
-		const src = document
-			.getElementsByClassName('video-player')[0]
-			.getAttribute('src')
-		if (src) {
-			let videoID = src.split('/').pop()
-			document
-				.getElementsByClassName('video-player')[0]
-				.setAttribute('data-plyr-embed-id', videoID)
-		}
-		new Plyr('.video-player', {
-			youtube: {
-				noCookie: true,
-			},
-			controls: [
-				'play-large',
-				'play',
-				'progress',
-				'current-time',
-				'mute',
-				'volume',
-				'fullscreen',
-			],
-		})
-	}, 500)
-}
 
 const lesson = createResource({
 	url: 'lms.lms.utils.get_lesson',
@@ -411,7 +390,7 @@ const setupLesson = (data) => {
 	if (!editor.value && data.body) {
 		const quizRegex = /\{\{ Quiz\(".*"\) \}\}/
 		hasQuiz.value = quizRegex.test(data.body)
-		if (!hasQuiz.value) allowDiscussions.value = true
+		if (!hasQuiz.value && !zenModeEnabled) allowDiscussions.value = true
 	}
 }
 
@@ -493,6 +472,7 @@ watch(
 	() => lesson.data,
 	(data) => {
 		setupLesson(data)
+		enablePlyr()
 	}
 )
 
@@ -526,6 +506,7 @@ const checkIfDiscussionsAllowed = () => {
 }
 
 const allowEdit = () => {
+	if (window.read_only_mode) return false
 	if (user.data?.is_moderator) return true
 	if (lesson.data?.instructors?.includes(user.data?.name)) return true
 	return false
@@ -559,6 +540,17 @@ const enrollStudent = () => {
 			},
 		}
 	)
+}
+
+const canGoZen = () => {
+	if (
+		user.data?.is_moderator ||
+		user.data?.is_instructor ||
+		user.data?.is_evaluator
+	)
+		return false
+	if (lesson.data?.membership) return true
+	return false
 }
 
 const goFullScreen = () => {
