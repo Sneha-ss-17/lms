@@ -200,6 +200,7 @@ class LMSCourse(Document):
 		return all_memberships
 
 
+
 @frappe.whitelist()
 def reindex_exercises(doc):
 	course_data = json.loads(doc)
