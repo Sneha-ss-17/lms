@@ -14,8 +14,8 @@ import { useScreenSize } from './utils/composables'
 import DesktopLayout from './components/DesktopLayout.vue'
 import MobileLayout from './components/MobileLayout.vue'
 import NoSidebarLayout from './components/NoSidebarLayout.vue'
-import { useRouter } from 'vue-router'
 import { usersStore } from '@/stores/user'
+import { useRouter } from 'vue-router'
 import { posthogSettings } from '@/telemetry'
 
 const screenSize = useScreenSize()
@@ -45,7 +45,6 @@ const Layout = computed(() => {
 
 onUnmounted(() => {
 	noSidebar.value = false
-	stopSession()
 })
 
 watch(userResource, () => {
